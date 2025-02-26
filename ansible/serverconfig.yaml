@@ -3,12 +3,41 @@
   tasks:
   - name: Set hostname 
     hostname:
-     name: "{{ inventory_hostname }}"
-
+      name: "{{ inventory_hostname }}"
   - name: update hostname
     command: hostname -F /etc/hostname
-
-  - name: Join the Worker nodes to the cluster.
+- hosts: leaders
+  tasks:
+  - name: Ping hosts
+    ansible.builtin.ping:
+  - name: Join the Leader nodes to the cluster.
     become: yes
     shell: 
-      cmd: curl -sfL https://get.k3s.io | K3S_URL=https://myserver:6443 K3S_TOKEN=mynodetoken sh -
+      cmd: curl -sfL https://get.k3s.io | sh -s -
+  - name: Extract K3S_TOKEN from server output
+    command: cat /var/lib/rancher/k3s/server/node-token
+    register: k3s_token
+    #failed_when: k3s_token is failed or k3s_token.stdout is undefined
+  - name: Set K3S_TOKEN as a fact
+    set_fact:
+      k3s_token: "{{ k3s_token.stdout }}"
+  - name: Set leader ip for K3S_URL
+    set_fact:
+      leader_ip: "{{ ansible_default_ipv4.address }}"
+  - name: Copy kube config from master
+    ansible.builtin.fetch:
+      src: /etc/rancher/k3s/k3s.yaml
+      dest: /home/{{ ansible_env.SUDO_USER }}/.kube/config
+      flat: yes
+  - name: Change cluster link in the local.config
+    replace:
+      path: "/home/{{ ansible_env.SUDO_USER }}/.kube/config"
+      regexp: '127.0.0.1'
+      replace: "{{ leader_ip }}"
+    delegate_to: localhost
+- hosts: workers
+  tasks:
+  - name: Ping hosts
+    ansible.builtin.ping:
+  - name: Install k3s workers
+    shell: curl -sfL https://get.k3s.io | K3S_URL=https://{{ hostvars[groups['leaders'].0].leader_ip }}:6443 K3S_TOKEN={{ hostvars[groups['leaders'].0].k3s_token }} K3S_NODE_NAME={{ inventory_hostname }} sh -
