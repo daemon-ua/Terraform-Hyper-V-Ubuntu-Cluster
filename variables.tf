@@ -1,22 +1,22 @@
 variable "HYPERV_USERNAME" {
   description = "Enter the local (Non-Domain Joined) Windows account"
   type        = string
-  default     = "terraform"
+  default     = "your_hyper-v_username"
 }
 variable "HYPERV_PASSWORD" {
   description = "Enter the password for the Windows account"
   sensitive   = true
   type        = string
-  default     = "terraform"
+  default     = "your_hyper-v_password"
 }
 variable "HYPERV_HOST" {
   description = "Enter the name (Non-FQDN) of the Windows host"
   type        = string
-  default     = "172.26.96.1"
+  default     = "your_hyper-v_host_ip"
 }
 variable "HYPERV_PORT" {
   type    = number
-  default = 5985
+  default = 5985  #5986 for https
 }
 variable "switch_name" {
   type    = string
